@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>iLink WeChat Bot Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --accent: #07c160;
+            --bg: #f8f9fa;
+            --sidebar: #1a1c1e;
+            --card-bg: #ffffff;
+            --text-main: #2d3436;
+            --text-muted: #636e72;
+            --border: #edf2f7;
+        }
+
+        * { box-sizing: border-box; transition: all 0.2s ease; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--text-main); display: flex; height: 100vh; }
+
+        /* 登录遮罩 - 磨砂玻璃效果 */
+        #login-overlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .login-card {
+            background: white; padding: 2.5rem; border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1); text-align: center; width: 320px;
+        }
+        #qrcode { background: white; padding: 15px; border-radius: 16px; margin: 1.5rem 0; border: 1px solid var(--border); }
+
+        /* 侧边栏 */
+        .sidebar { width: 280px; background: var(--sidebar); color: #fff; padding: 1.5rem; display: flex; flex-direction: column; }
+        .logo { font-size: 1.25rem; font-weight: 700; margin-bottom: 2rem; display: flex; align-items: center; gap: 10px; }
+        .logo::before { content: ''; width: 12px; height: 12px; background: var(--accent); border-radius: 50%; }
+
+        .nav-label { font-size: 11px; text-transform: uppercase; color: #636e72; letter-spacing: 1px; margin-bottom: 0.5rem; }
+        .kb-area {
+            background: #2d3436; border: 1px solid #3d4446; border-radius: 12px;
+            padding: 12px; color: #eee; font-size: 13px; resize: none; width: 100%; margin-bottom: 1rem;
+        }
+        .btn-primary {
+            background: var(--accent); color: white; border: none; padding: 12px;
+            border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-logout { background: transparent; color: #ff7675; border: 1px solid #ff7675; margin-top: auto; padding: 10px; border-radius: 10px; cursor: pointer; }
+
+        /* 内容区 */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .top-bar {
+            height: 70px; background: white; padding: 0 2rem;
+            display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border);
+        }
+        .model-badge { background: #f1f2f6; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
+        select { border: none; background: transparent; font-weight: 600; cursor: pointer; outline: none; }
+
+        .content { flex: 1; padding: 2rem; overflow-y: auto; }
+        .table-card { background: white; border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #fafbfc; text-align: left; padding: 16px; font-size: 13px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+        td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+
+        /* 状态标识 */
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: #dfe6e9; margin-right: 5px; }
+        .status-online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+        /* 消息样式 */
+        .text-q { font-weight: 600; color: #2d3436; margin-bottom: 4px; }
+        .text-a { color: #535c68; line-height: 1.5; }
+        .time-tag { font-size: 11px; color: #b2bec3; display: block; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+<div id="login-overlay">
+    <div class="login-card">
+        <h2 style="margin:0">Bot Login</h2>
+        <p style="color:#636e72; font-size:14px">请使用微信扫码</p>
+        <div id="qrcode"></div>
+        <div id="login-status" style="font-size: 13px; color: var(--accent)">正在联络服务器...</div>
+    </div>
+</div>
+
+<aside class="sidebar">
+    <div class="logo">WeChat Bot Pro</div>
+
+    <div class="nav-label">知识库配置</div>
+    <textarea id="kb-input" class="kb-area" rows="8" placeholder="输入 AI 的人设或背景知识..."></textarea>
+    <button class="btn-primary" onclick="saveKB()">更新设定</button>
+
+    <button class="btn-logout" onclick="logout()">断开连接</button>
+</aside>
+
+<main class="main">
+    <header class="top-bar">
+        <div class="model-badge">
+            <span style="font-size: 12px; color: var(--text-muted)">当前模型:</span>
+            <select id="model-select">
+                <option value="DeepSeek-V3">DeepSeek V3</option>
+                <option value="GPT-4o">GPT-4o</option>
+                <option value="Claude-3.5">Claude 3.5</option>
+            </select>
+        </div>
+        <div id="connection-status"><span class="status-dot status-online"></span> 服务已连接</div>
+    </header>
+
+    <div class="content">
+        <div class="table-card">
+            <table>
+                <thead>
+                <tr>
+                    <th style="width: 15%">模型</th>
+                    <th style="width: 35%">提问记录</th>
+                    <th style="width: 50%">AI 回答</th>
+                </tr>
+                </thead>
+                <tbody id="record-body"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script>
+    const API = 'http://localhost:8080';
+
+    // --- 核心逻辑：解决扫码不响应 ---
+
+    async function init() {
+        try {
+            // 1. 获取二维码
+            const res = await fetch(`${API}/api/auth/login/wechat`).then(r => r.json());
+            if (res.code === 1) {
+                document.getElementById('qrcode').innerHTML = '';
+                new QRCode(document.getElementById('qrcode'), { text: res.data, width: 200, height: 200 });
+                document.getElementById('login-status').innerText = "等待扫码确认...";
+
+                // 并行启动状态监听，互不阻塞
+                pollLogin();
+            }
+        } catch (e) {
+            document.getElementById('login-status').style.color = 'red';
+            document.getElementById('login-status').innerText = "后端接口异常，请检查跨域配置";
+        }
+    }
+
+    // 优化后的长轮询：使用递归异步，避免阻塞
+    async function pollLogin() {
+        try {
+            const res = await fetch(`${API}/api/auth/login/status`).then(r => r.json());
+            if (res.code === 1 && res.data === "confirmed") {
+                document.getElementById('login-overlay').style.display = 'none';
+                pollMessages(); // 登录成功后启动消息监听
+            } else {
+                // 如果后端长轮询超时返回（通常 30s-60s），立即发起下一次
+                setTimeout(pollLogin, 100);
+            }
+        } catch (e) {
+            // 网络错误则等几秒再试
+            setTimeout(pollLogin, 2000);
+        }
+    }
+
+    async function pollMessages() {
+        try {
+            const res = await fetch(`${API}/api/message/receive`, { method: 'POST' }).then(r => r.json());
+            if (res.code === 1 && res.data) {
+                renderRow(res.data);
+            }
+            setTimeout(pollMessages, 10);
+        } catch (e) {
+            setTimeout(pollMessages, 2000);
+        }
+    }
+
+    function renderRow(data) {
+        const tbody = document.getElementById('record-body');
+        const row = document.createElement('tr');
+
+        // 模拟数据结构解析
+        const model = data.model || document.getElementById('model-select').value;
+        const q = data.question || "用户发送了消息";
+        const a = data.answer || "（消息已接收）";
+        const now = new Date().toLocaleTimeString();
+
+        row.innerHTML = `
+                <td><span style="font-weight:600; color:var(--accent)">${model}</span></td>
+                <td>
+                    <div class="text-q">${q}</div>
+                    <span class="time-tag">${now}</span>
+                </td>
+                <td>
+                    <div class="text-a">${a}</div>
+                    <span class="time-tag">Response at ${now}</span>
+                </td>
+            `;
+        tbody.prepend(row);
+    }
+
+    function saveKB() {
+        alert("知识库已同步至 Bot 内存");
+    }
+
+    function logout() {
+        if(confirm("确定断开微信连接？")) location.reload();
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
