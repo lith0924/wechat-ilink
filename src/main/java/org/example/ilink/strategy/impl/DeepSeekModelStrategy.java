@@ -58,7 +58,7 @@ public class DeepSeekModelStrategy implements AIModel {
 
     @Override
     public String getModelName() {
-        return "DeepSeek-" + model;
+        return model;
     }
 
     @Override

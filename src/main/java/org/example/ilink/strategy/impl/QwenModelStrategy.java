@@ -55,7 +55,7 @@ public class QwenModelStrategy implements AIModel {
 
     @Override
     public String getModelName() {
-        return "Qwen-" + model;
+        return model;
     }
 
     @Override

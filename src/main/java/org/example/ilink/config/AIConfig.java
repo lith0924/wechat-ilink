@@ -45,6 +45,14 @@ public class AIConfig {
         }
         return model.generateResponse(prompt);
     }
+
+    /**
+     * 获取当前默认模型名称
+     */
+    public String getDefaultModelName() {
+        AIModel model = getActiveModel();
+        return model != null ? model.getModelName() : "unknown";
+    }
     
     /**
      * 获取当前活跃的模型

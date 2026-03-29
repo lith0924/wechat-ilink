@@ -167,9 +167,12 @@
             if (res.code === 1 && res.data) {
                 renderRow(res.data);
             }
-            setTimeout(pollMessages, 10);
         } catch (e) {
-            setTimeout(pollMessages, 2000);
+            await new Promise(r => setTimeout(r, 2000));
+        } finally {
+            // 等上一次请求完全结束后再发起下一次，避免并发重复处理同一条消息
+            await new Promise(r => setTimeout(r, 500));
+            pollMessages();
         }
     }
 

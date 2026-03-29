@@ -5,6 +5,7 @@ import org.example.ilink.config.AIConfig;
 import org.example.ilink.entity.message.MessageResponse;
 import org.example.ilink.manager.MessageManager;
 import org.example.ilink.manager.WeChatLoginManager;
+import org.example.ilink.service.ChatService;
 import org.example.ilink.service.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -32,6 +33,8 @@ public class MessageServiceImpl implements MessageService {
     @Autowired
     private AIConfig aiConfig;
 
+    @Autowired
+    private ChatService chatService;
 
     @Autowired
     private AIIntentParser aiIntentParser;
@@ -243,8 +246,24 @@ public class MessageServiceImpl implements MessageService {
                             }
                         } else {
                             // 不是提醒，正常调用 AI 对话
-                            String aiResponse = aiConfig.generateResponse(userMessage);
+                            String sessionId = receivedFromUserId;
+                            String modelName = aiConfig.getDefaultModelName();
+                            // 保存用户消息到 MySQL
+                            chatService.saveMessage(sessionId, receivedFromUserId, "user", userMessage, modelName);
+                            // 追加用户消息到 Redis 上下文
+                            chatService.appendToContext(sessionId, "user", userMessage);
+                            // 带上下文调用 AI
+                            String prompt = chatService.buildPromptWithContext(sessionId, userMessage);
+                            String aiResponse = aiConfig.generateResponse(prompt);
                             System.out.println("AI 回复: " + aiResponse);
+                            // 保存 AI 回复到 MySQL
+                            chatService.saveMessage(sessionId, receivedFromUserId, "assistant", aiResponse, modelName);
+                            // 追加 AI 回复到 Redis 上下文
+                            chatService.appendToContext(sessionId, "assistant", aiResponse);
+                            // 保存 token 消耗（粗估）
+                            int promptTokens = prompt.length() / 2 + 1;
+                            int completionTokens = aiResponse.length() / 2 + 1;
+                            chatService.saveTokenUsage(sessionId, receivedFromUserId, modelName, promptTokens, completionTokens);
                             sendAIMessage(aiResponse);
                         }
                     }

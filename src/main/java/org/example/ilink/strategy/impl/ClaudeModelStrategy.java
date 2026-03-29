@@ -58,7 +58,7 @@ public class ClaudeModelStrategy implements AIModel {
 
     @Override
     public String getModelName() {
-        return "Claude-" + model;
+        return model;
     }
 
     @Override
