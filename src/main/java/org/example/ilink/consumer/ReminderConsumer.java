@@ -1,7 +1,6 @@
 package org.example.ilink.consumer;
 
 import org.example.ilink.config.RabbitMQConfig;
-
 import org.example.ilink.entity.message.ReminderMessage;
 import org.example.ilink.service.MessageService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -9,7 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * 提醒消息消费者
+ * 提醒消息消费者（确认提醒设置）
  * 接收过期提醒并发送给用户
  */
 @Component
@@ -21,7 +20,7 @@ public class ReminderConsumer {
     /**
      * 监听提醒队列，处理到期的提醒
      */
-    @RabbitListener(queues = RabbitMQConfig.REMINDER_QUEUE)
+    @RabbitListener(queues = RabbitMQConfig.REMINDER_QUEUE, concurrency = "5")
     public void handleReminder(ReminderMessage reminder) {
         System.out.println("收到提醒消息: " + reminder);
 

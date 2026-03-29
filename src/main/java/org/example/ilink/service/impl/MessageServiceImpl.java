@@ -218,10 +218,6 @@ public class MessageServiceImpl implements MessageService {
 //                        // 发送 AI 回复
 //                        sendAIMessage(aiResponse);
 
-
-
-
-
                         // 先尝试解析提醒意图
                         AIIntentParser.ReminderInfo reminderInfo = aiIntentParser.parseReminderIntent(userMessage);
 
@@ -240,7 +236,8 @@ public class MessageServiceImpl implements MessageService {
                                 // 发送确认消息
                                 String confirmMsg = "✅ 已设置提醒：" + remindContent +
                                         "，将在 " + (delayMs / 1000) + " 秒后提醒您";
-                                sendAIMessage(confirmMsg);
+//                                sendAIMessage(confirmMsg);
+                                sendReminderToUser(receivedFromUserId, confirmMsg);
                             } else {
                                 sendAIMessage("抱歉，我没能理解提醒时间，请说「3分钟后提醒我喝水」这样的格式");
                             }
@@ -341,7 +338,8 @@ public class MessageServiceImpl implements MessageService {
         Map<String, Object> msg = new HashMap<>();
         msg.put("from_user_id", weChatLoginManager.getIlinkUserId());
         msg.put("to_user_id", userId);  // 发送给指定用户
-        msg.put("client_id", messageManager.getClientId());
+//        msg.put("client_id", messageManager.getClientId());
+        msg.put("client_id", "reminder_" + System.currentTimeMillis() + "_" + random.nextInt(1000));
         msg.put("message_type", 2);
         msg.put("message_state", 2);
         msg.put("context_token", messageManager.getContextToken());
