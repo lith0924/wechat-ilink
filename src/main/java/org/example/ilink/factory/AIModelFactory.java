@@ -1,6 +1,6 @@
 package org.example.ilink.factory;
 
-import org.example.ilink.model.AIModel;
+import org.example.ilink.strategy.AIModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

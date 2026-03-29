@@ -1,7 +1,7 @@
 package org.example.ilink.config;
 
 import org.example.ilink.factory.AIModelFactory;
-import org.example.ilink.model.AIModel;
+import org.example.ilink.strategy.AIModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -67,10 +67,7 @@ public class AIConfig {
     public java.util.Set<String> getAvailableModels() {
         return modelProvider.getAvailableModelNames();
     }
-    
-    /**
-     * 获取模型提供者（如果需要直接操作）
-     */
+
     public AIModelFactory getModelProvider() {
         return modelProvider;
     }
