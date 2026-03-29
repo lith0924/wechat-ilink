@@ -1,9 +1,9 @@
 package org.example.ilink.strategy.impl;
 
 import org.example.ilink.strategy.AIModel;
+import org.example.ilink.strategy.AIResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
 
 @Component
 public class LocalModelStrategy implements AIModel {
@@ -19,19 +19,28 @@ public class LocalModelStrategy implements AIModel {
 
     @Override
     public String generateResponse(String prompt) {
+        return generateWithUsage(prompt).getContent();
+    }
+
+    @Override
+    public AIResponse generateWithUsage(String prompt) {
         if (!isAvailable()) {
-            return "本地模型未启用";
+            return new AIResponse("本地模型未启用", 0, 0);
         }
         try {
-            return callLocalModel(prompt);
+            String content = callLocalModel(prompt);
+            // 本地模型无法获取真实 token，粗估
+            int promptTokens = prompt.length() / 2 + 1;
+            int completionTokens = content.length() / 2 + 1;
+            return new AIResponse(content, promptTokens, completionTokens);
         } catch (Exception e) {
-            return "调用本地模型失败: " + e.getMessage();
+            return new AIResponse("调用本地模型失败: " + e.getMessage(), 0, 0);
         }
     }
 
     @Override
     public String getModelName() {
-        return "Local-" + model;
+        return model;
     }
 
     @Override
@@ -42,7 +51,6 @@ public class LocalModelStrategy implements AIModel {
     private String callLocalModel(String prompt) {
         // 调用 Ollama API：POST http://localhost:11434/api/generate
         // { "model": "llama2", "prompt": "...", "stream": false }
-        // Spring AI 替代后可直接删除此方法
         return "本地模型回复: " + prompt;
     }
 }

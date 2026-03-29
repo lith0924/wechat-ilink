@@ -1,6 +1,7 @@
 package org.example.ilink.strategy.impl;
 
 import org.example.ilink.strategy.AIModel;
+import org.example.ilink.strategy.AIResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -18,7 +19,7 @@ public class DeepSeekModelStrategy implements AIModel {
     @Value("${ai.deepseek.model:deepseek-chat}")
     private String model;
 
-    @Value("${ai.deepseek.api-url:https://api.deepseek.com/v1}")
+    @Value("${ai.deepseek.api-url:https://api.deepseek.com}")
     private String apiUrl;
 
     private final WebClient webClient;
@@ -29,8 +30,13 @@ public class DeepSeekModelStrategy implements AIModel {
 
     @Override
     public String generateResponse(String prompt) {
+        return generateWithUsage(prompt).getContent();
+    }
+
+    @Override
+    public AIResponse generateWithUsage(String prompt) {
         if (!isAvailable()) {
-            return "DeepSeek 模型未配置";
+            return new AIResponse("DeepSeek 模型未配置", 0, 0);
         }
         try {
             Map<String, Object> requestBody = new HashMap<>();
@@ -50,9 +56,9 @@ public class DeepSeekModelStrategy implements AIModel {
                     .bodyToMono(String.class)
                     .block();
 
-            return parseResponse(response);
+            return parseResponseWithUsage(response);
         } catch (Exception e) {
-            return "调用 DeepSeek 失败: " + e.getMessage();
+            return new AIResponse("调用 DeepSeek 失败: " + e.getMessage(), 0, 0);
         }
     }
 
@@ -66,15 +72,46 @@ public class DeepSeekModelStrategy implements AIModel {
         return apiKey != null && !apiKey.isEmpty();
     }
 
-    private String parseResponse(String response) {
+    private AIResponse parseResponseWithUsage(String response) {
         try {
+            // 解析 content
+            String content = "";
             int idx = response.indexOf("\"content\":\"");
             if (idx != -1) {
                 int start = idx + 11;
                 int end = response.indexOf("\"", start);
-                return response.substring(start, end);
+                content = response.substring(start, end);
             }
-        } catch (Exception ignored) {}
-        return response;
+            // 还原 JSON 转义字符
+            content = content.replace("\\n", "\n")
+                             .replace("\\t", "\t")
+                             .replace("\\\"", "\"")
+                             .replace("\\\\", "\\");
+            // 去除 Markdown 格式符号，微信不支持渲染
+            content = content.replaceAll("\\*{1,3}([^*]+)\\*{1,3}", "$1")
+                             .replaceAll("#{1,6}\\s*", "")
+                             .replaceAll("- ", "")
+                             .replaceAll("\\d+\\. ", "")
+                             .replaceAll("`{1,3}[^`]*`{1,3}", "");
+            // 解析真实 token 数
+            int promptTokens = extractInt(response, "\"prompt_tokens\":");
+            int completionTokens = extractInt(response, "\"completion_tokens\":");
+            return new AIResponse(content, promptTokens, completionTokens);
+        } catch (Exception e) {
+            return new AIResponse(response, 0, 0);
+        }
+    }
+
+    private int extractInt(String json, String key) {
+        try {
+            int idx = json.indexOf(key);
+            if (idx == -1) return 0;
+            int start = idx + key.length();
+            int end = start;
+            while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
+            return Integer.parseInt(json.substring(start, end));
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

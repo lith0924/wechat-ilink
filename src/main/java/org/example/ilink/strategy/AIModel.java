@@ -9,6 +9,19 @@ public interface AIModel {
     String generateResponse(String prompt);
 
     /**
+     * 调用 AI 模型生成回复
+     * @param prompt 用户输入的提示词
+     * @return AIResponse 包含回复文本和 token 数
+     */
+    default AIResponse generateWithUsage(String prompt) {
+        String content = generateResponse(prompt);
+        // 默认粗估，子类可覆盖以返回真实值
+        int promptTokens = prompt.length() / 2 + 1;
+        int completionTokens = content.length() / 2 + 1;
+        return new AIResponse(content, promptTokens, completionTokens);
+    }
+
+    /**
      * 获取模型名称
      * @return 模型名称
      */

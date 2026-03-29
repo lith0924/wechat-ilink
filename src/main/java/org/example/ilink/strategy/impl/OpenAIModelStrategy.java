@@ -1,6 +1,7 @@
 package org.example.ilink.strategy.impl;
 
 import org.example.ilink.strategy.AIModel;
+import org.example.ilink.strategy.AIResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -10,32 +11,6 @@ import java.util.Map;
 
 /**
  * OpenAI 模型策略
- *
- * ============================================================
- * 【Spring AI 替代方案】
- * ============================================================
- * pom.xml 依赖：
- *   <dependency>
- *     <groupId>org.springframework.ai</groupId>
- *     <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
- *     <version>1.0.0</version>
- *   </dependency>
- *
- * application.properties：
- *   spring.ai.openai.api-key=${ai.openai.api-key}
- *   spring.ai.openai.base-url=https://api.openai.com
- *   spring.ai.openai.chat.options.model=gpt-3.5-turbo
- *
- * 替代后的调用方式：
- *   @Autowired
- *   private OpenAiChatModel chatModel;
- *
- *   String response = chatModel
- *       .call(new Prompt("你好"))
- *       .getResult().getOutput().getContent();
- *
- * 替代后这整个类可以删除。
- * ============================================================
  */
 @Component
 public class OpenAIModelStrategy implements AIModel {
@@ -57,8 +32,13 @@ public class OpenAIModelStrategy implements AIModel {
 
     @Override
     public String generateResponse(String prompt) {
+        return generateWithUsage(prompt).getContent();
+    }
+
+    @Override
+    public AIResponse generateWithUsage(String prompt) {
         if (!isAvailable()) {
-            return "OpenAI 模型未配置";
+            return new AIResponse("OpenAI 模型未配置", 0, 0);
         }
         try {
             Map<String, Object> requestBody = new HashMap<>();
@@ -77,15 +57,15 @@ public class OpenAIModelStrategy implements AIModel {
                     .bodyToMono(String.class)
                     .block();
 
-            return parseResponse(response);
+            return parseResponseWithUsage(response);
         } catch (Exception e) {
-            return "调用 OpenAI 失败: " + e.getMessage();
+            return new AIResponse("调用 OpenAI 失败: " + e.getMessage(), 0, 0);
         }
     }
 
     @Override
     public String getModelName() {
-        return "OpenAI-" + model;
+        return model;
     }
 
     @Override
@@ -93,15 +73,42 @@ public class OpenAIModelStrategy implements AIModel {
         return apiKey != null && !apiKey.isEmpty();
     }
 
-    private String parseResponse(String response) {
+    private AIResponse parseResponseWithUsage(String response) {
         try {
+            String content = "";
             int idx = response.indexOf("\"content\":\"");
             if (idx != -1) {
                 int start = idx + 11;
                 int end = response.indexOf("\"", start);
-                return response.substring(start, end);
+                content = response.substring(start, end);
             }
-        } catch (Exception ignored) {}
-        return response;
+            content = content.replace("\\n", "\n")
+                             .replace("\\t", "\t")
+                             .replace("\\\"", "\"")
+                             .replace("\\\\", "\\");
+            content = content.replaceAll("\\*{1,3}([^*]+)\\*{1,3}", "$1")
+                             .replaceAll("#{1,6}\\s*", "")
+                             .replaceAll("- ", "")
+                             .replaceAll("\\d+\\. ", "")
+                             .replaceAll("`{1,3}[^`]*`{1,3}", "");
+            int promptTokens = extractInt(response, "\"prompt_tokens\":");
+            int completionTokens = extractInt(response, "\"completion_tokens\":");
+            return new AIResponse(content, promptTokens, completionTokens);
+        } catch (Exception e) {
+            return new AIResponse(response, 0, 0);
+        }
+    }
+
+    private int extractInt(String json, String key) {
+        try {
+            int idx = json.indexOf(key);
+            if (idx == -1) return 0;
+            int start = idx + key.length();
+            int end = start;
+            while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
+            return Integer.parseInt(json.substring(start, end));
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

@@ -252,18 +252,17 @@ public class MessageServiceImpl implements MessageService {
                             chatService.saveMessage(sessionId, receivedFromUserId, "user", userMessage, modelName);
                             // 追加用户消息到 Redis 上下文
                             chatService.appendToContext(sessionId, "user", userMessage);
-                            // 带上下文调用 AI
+                            // 带上下文调用 AI，获取真实 token 数
                             String prompt = chatService.buildPromptWithContext(sessionId, userMessage);
-                            String aiResponse = aiConfig.generateResponse(prompt);
+                            org.example.ilink.strategy.AIResponse aiResult = aiConfig.generateWithUsage(prompt);
+                            String aiResponse = aiResult.getContent();
                             System.out.println("AI 回复: " + aiResponse);
                             // 保存 AI 回复到 MySQL
                             chatService.saveMessage(sessionId, receivedFromUserId, "assistant", aiResponse, modelName);
                             // 追加 AI 回复到 Redis 上下文
                             chatService.appendToContext(sessionId, "assistant", aiResponse);
-                            // 保存 token 消耗（粗估）
-                            int promptTokens = prompt.length() / 2 + 1;
-                            int completionTokens = aiResponse.length() / 2 + 1;
-                            chatService.saveTokenUsage(sessionId, receivedFromUserId, modelName, promptTokens, completionTokens);
+                            // 保存真实 token 消耗
+                            chatService.saveTokenUsage(sessionId, receivedFromUserId, modelName, aiResult.getPromptTokens(), aiResult.getCompletionTokens());
                             sendAIMessage(aiResponse);
                         }
                     }
