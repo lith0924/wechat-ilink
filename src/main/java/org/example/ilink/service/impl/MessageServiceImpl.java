@@ -76,12 +76,12 @@ public class MessageServiceImpl implements MessageService {
 
         try {
             byte[] responseBytes = webClient.post()
-                    .uri("/ilink/bot/getupdates")
+                    .uri("/ilink/bot/getupdates") // iLink 长轮询接口
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer " + weChatLoginManager.getBotToken())
                     .header("AuthorizationType", "ilink_bot_token")
                     .header("X-WECHAT-UIN", encodedUin)
-                    .bodyValue(requestBody)
+                    .bodyValue(requestBody) // 带上 get_updates_buf 游标
                     .retrieve()
                     .bodyToMono(byte[].class)
                     .timeout(Duration.ofSeconds(60))
