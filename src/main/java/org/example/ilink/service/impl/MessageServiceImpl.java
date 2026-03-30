@@ -248,21 +248,14 @@ public class MessageServiceImpl implements MessageService {
                             // 不是提醒，正常调用 AI 对话
                             String sessionId = receivedFromUserId;
                             String modelName = aiConfig.getDefaultModelName();
-                            // 保存用户消息到 MySQL
-                            chatService.saveMessage(sessionId, receivedFromUserId, "user", userMessage, modelName);
-                            // 追加用户消息到 Redis 上下文
-                            chatService.appendToContext(sessionId, "user", userMessage);
-                            // 带上下文调用 AI，获取真实 token 数
-                            String prompt = chatService.buildPromptWithContext(sessionId, userMessage);
-                            org.example.ilink.strategy.AIResponse aiResult = aiConfig.generateWithUsage(prompt);
+                            // 保存用户消息到 MySQL，返回 messageId
+                            Long messageId = chatService.saveMessage(message.getContext_token(), userMessage, 1, modelName, "default");
+                            // 调用 AI，获取真实 token 数
+                            org.example.ilink.strategy.AIResponse aiResult = aiConfig.generateWithUsage(userMessage);
                             String aiResponse = aiResult.getContent();
                             System.out.println("AI 回复: " + aiResponse);
-                            // 保存 AI 回复到 MySQL
-                            chatService.saveMessage(sessionId, receivedFromUserId, "assistant", aiResponse, modelName);
-                            // 追加 AI 回复到 Redis 上下文
-                            chatService.appendToContext(sessionId, "assistant", aiResponse);
-                            // 保存真实 token 消耗
-                            chatService.saveTokenUsage(sessionId, receivedFromUserId, modelName, aiResult.getPromptTokens(), aiResult.getCompletionTokens());
+                            // 保存 Bot 回复到 MySQL
+                            chatService.saveReply(messageId, aiResponse, aiResult.getTotalTokens());
                             sendAIMessage(aiResponse);
                         }
                     }

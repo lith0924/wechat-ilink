@@ -1,60 +1,29 @@
 package org.example.ilink.service;
 
-import org.example.ilink.entity.chat.ChatRecord;
-import org.example.ilink.entity.chat.TokenUsage;
+import org.example.ilink.entity.chat.ChatMessage;
+import org.example.ilink.entity.chat.ChatReply;
 
 import java.util.List;
 
-/**
- * 聊天记录服务接口
- */
 public interface ChatService {
 
+    /**
+     * 保存用户消息，返回插入后的 id（用于关联回复）
+     */
+    Long saveMessage(String contextToken, String content, int useAi, String modelName, String chatMode);
 
     /**
-     * 保存一条聊天消息到 MySQL
+     * 保存 Bot 回复
      */
-    void saveMessage(String sessionId, String userId,
-                     String role, String content, String modelName);
+    void saveReply(Long messageId, String content, int totalTokens);
 
     /**
-     * 查询某会话的全部聊天记录
+     * 查询某个 contextToken 下的所有消息
      */
-    List<ChatRecord> getSessionHistory(String sessionId);
+    List<ChatMessage> getMessagesByContextToken(String contextToken);
 
     /**
-     * 查询某用户的全部聊天记录
+     * 查询某条消息的所有回复
      */
-    List<ChatRecord> getUserHistory(String userId);
-
-    /**
-     * 保存 Token 消耗到 MySQL
-     */
-    void saveTokenUsage(String sessionId, String userId, String modelName,
-                        int promptTokens, int completionTokens);
-
-    /**
-     * 查询某用户的总 Token 消耗
-     */
-    int getTotalTokensByUser(String userId);
-
-    /**
-     * 追加一条消息到 Redis 上下文
-     */
-    void appendToContext(String sessionId, String role, String content);
-
-    /**
-     * 获取 Redis 中的上下文
-     */
-    List<String> getContext(String sessionId);
-
-    /**
-     * 清空某会话的 Redis 上下文
-     */
-    void clearContext(String sessionId);
-
-    /**
-     * 将 Redis 上下文拼接成 prompt 字符串，实现多轮对话
-     */
-    String buildPromptWithContext(String sessionId, String userMessage);
+    List<ChatReply> getRepliesByMessageId(Long messageId);
 }

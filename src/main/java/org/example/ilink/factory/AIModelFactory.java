@@ -11,8 +11,6 @@ import java.util.Map;
 /**
  * AI 模型提供者
  * 负责创建和管理 AI 模型实例
- * 
- * 这是一个全局的工厂类，所有模块都可以使用
  */
 @Component
 public class AIModelFactory {
