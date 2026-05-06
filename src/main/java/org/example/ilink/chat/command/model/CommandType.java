@@ -1,0 +1,14 @@
+package org.example.ilink.chat.command.model;
+
+public enum CommandType {
+    SWITCH_MODE,
+    SWITCH_MODEL,
+    SHOW_STATUS,
+    RESET_SESSION,
+    SET_CUSTOM_PROMPT,
+    SHOW_CUSTOM_PROMPT,
+    CLEAR_CUSTOM_PROMPT,
+    AUTO_GENERATE_CUSTOM_PROMPT,
+    GENERATE_CUSTOM_PROMPT_FROM_TRANSCRIPT,
+    UNKNOWN
+}
